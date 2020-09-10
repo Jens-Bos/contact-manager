@@ -1,0 +1,182 @@
+#! /usr/bin/python3
+
+import argparse
+import json
+from os.path import expanduser, exists
+
+
+def main():
+    contacts = load_contacts()
+
+    parser = argparse.ArgumentParser(
+        description="Simple contact manager",
+        epilog="Jens Bos 2020"
+    )
+
+    command_parser = parser.add_subparsers(
+        title="commands",
+        description="supported commands"
+    )
+
+    parser_list = command_parser.add_parser(
+        "list",
+        help="Shows the contacts list"
+    )
+
+    parser_list.add_argument(
+        "-f",
+        "--name_first",
+        type=str,
+        help="Contact first name"
+    )
+
+    parser_list.add_argument(
+        "-l",
+        "--name_last",
+        type=str,
+        help="Contact second name"
+    )
+
+    parser_list.add_argument(
+        "-e",
+        "--email",
+        help="contact email"
+    )
+
+    parser_list.add_argument(
+        "-p",
+        "--phone",
+        type=int,
+        help="Contact phone number"
+    )
+
+    parser_list.set_defaults(func=list_contacts)
+
+    parser_add = command_parser.add_parser(
+        "add",
+        help="Adds new contact to the list"
+    )
+
+    parser_add.add_argument(
+        "name_first",
+        type=str,
+        help="Contact first name"
+    )
+
+    parser_add.add_argument(
+        "name_last",
+        type=str,
+        help="Contact second name"
+    )
+
+    parser_add.add_argument(
+        "email",
+        help="contact email"
+    )
+
+    parser_add.add_argument(
+        "phone",
+        type=int,
+        help="Contact phone number"
+    )
+    parser_add.set_defaults(func=contact_add)
+
+    parser_remove = command_parser.add_parser(
+        "remove",
+        help="Removes contact from the list"
+    )
+
+    parser_remove.add_argument(
+        "email",
+        type=str,
+        help="Contact email"
+    )
+    parser_remove.set_defaults(func=contact_remove)
+
+
+# Parse args and send parsed data to corresponding function
+    args = parser.parse_args()
+    try:
+        args.func(args, contacts)
+    except AttributeError:
+        parser.print_help()
+
+
+def contact_add(args, contacts):
+    contact = {
+        "name_first": args.name_first,
+        "name_last": args.name_last,
+        "email": args.email,
+        "phone": args.phone,
+    }
+    contacts.append(contact)
+    save_contacts(contacts)
+
+
+def contact_remove(args, contacts):
+    deletes = []
+    for counter, contact in reversed(list(enumerate(contacts))):
+        if contact["email"] == args.email:
+            deletes.append(counter)
+    deletes.sort(reverse=True)
+    for delete in deletes:
+        contacts.pop(delete)
+    save_contacts(contacts)
+    if not deletes:
+        print(args.email, "not found")
+
+
+def list_contacts(args, contacts):
+    for contact in contacts:
+        if args.name_first:
+            if contact["name_first"] != args.name_first:
+                continue
+        if args.name_last:
+            if contact["name_last"] != args.name_last:
+                continue
+        if args.email:
+            if contact["email"] != args.email:
+                continue
+        if args.phone:
+            if contact["phone"] != args.phone:
+                continue
+        print_contact(contact)
+    print("----------")
+
+
+def print_contact(contact):
+    print("----------")
+    print(contact["name_first"], contact["name_last"])
+    print(contact["email"])
+    print(contact["phone"])
+    for field in contact:
+        if field in ["name_first", "name_last", "email", "phone"]:
+            continue
+        print(field + ":", contact[field])
+
+
+def load_contacts():
+    _path = expanduser("~/contacts.txt")
+    if not exists(_path):
+        print("Missing database. Create ~/contacts.txt?")
+        answer = input("[Y/n] ")
+        if answer not in ["", "y", "Y"]:
+            exit()
+        with open(_path, "w") as _f:
+            pass
+        save_contacts([])
+    with open(_path) as _f:
+        strings = _f.read()
+    contacts = json.loads(strings)
+    return contacts
+
+
+def save_contacts(contacts):
+    _path = expanduser("~/contacts.txt")
+    strings = json.dumps(contacts)
+    with open(_path, "w") as _f:
+        _f.writelines(strings)
+
+
+if __name__ == "__main__":
+    main()
